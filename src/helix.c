@@ -6,12 +6,18 @@
 #include <unistd.h>
 #include <termios.h>
 
+/* DEFINES */
+#define CTRL_KEY(k) ((k) & 0x1f) // makes the first 3 bits of character 0 to make it ctrl-key
+
 /* DATA */
 struct termios orig_termios;
 
 /* TERMINAL */
 void
 Die(const char* s) {
+  write(STDOUT_FILENO, "\x1b[2J", 4); // clears the screen
+  write(STDOUT_FILENO, "\x1b[H", 3);  // reposition cursor at top left of screen to begin drawing
+  
   perror(s);
   exit(1);
 }
@@ -45,25 +51,65 @@ EnableRawMode() {
   }
 }
 
+char
+EditorReadKey() {
+  int nread;
+  char c;
+
+  while ((nread = read(STDIN_FILENO, &c, 1)) != 1) {
+    if (nread == -1 && errno != EAGAIN) {
+      Die("read");
+    }
+  }
+
+  return c;
+}
+
+/* OUTPUT */
+void
+EditorDrawRows() {
+  int y;
+
+  for (y = 0; y < 24; y++) {
+    write(STDOUT_FILENO, "$\r\n", 3);
+  }
+}
+
+void
+EditorRefreshScreen() {
+  write(STDOUT_FILENO, "\x1b[2J", 4); // clears the screen
+  write(STDOUT_FILENO, "\x1b[H", 3);  // reposition cursor at top left of screen to begin drawing
+  
+  EditorDrawRows();
+
+  write(STDOUT_FILENO, "\x1b[H", 3);
+}
+
+/* INPUT */
+
+void
+EditorProcessKeypress() {
+  char c;
+
+  c = EditorReadKey();
+
+  switch (c) {
+    case CTRL_KEY('q'):
+		  write(STDOUT_FILENO, "\x1b[2J", 4); // clears the screen
+		  write(STDOUT_FILENO, "\x1b[H", 3);  // reposition cursor at top left of screen to begin drawing
+      exit(0);
+      break;
+  }
+}
+
 /* INIT */
 int
 main(int argc, char** argv) {
-  char c;
-
   EnableRawMode();
 
   while (1) {
-    c = '\0';
-    if (read(STDIN_FILENO, &c, 1) == -1 && errno != EAGAIN) {
-      Die("read");
-    }
-
-    if (iscntrl(c)) {
-      printf("%d\r\n", c);
-    } else {
-      printf("%d ('%c')\r\n", c, c);
-    }
-    if (c == 'q') break;
+    EditorRefreshScreen();
+    EditorProcessKeypress();
   }
 
   return 0;
