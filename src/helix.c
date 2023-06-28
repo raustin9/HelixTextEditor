@@ -12,6 +12,7 @@
 
 /* DEFINES */
 #define CTRL_KEY(k) ((k) & 0x1f) // makes the first 3 bits of character 0 to make it ctrl-key
+#define HELIX_VERSION "0.0.1"
 
 /* DATA */
 // struct termios orig_termios;
@@ -171,7 +172,24 @@ EditorDrawRows(struct abuf *ab) {
   int y;
 
   for (y = 0; y < E.screenrows; y++) {
-    AbAppend(ab, "$", 1);
+    if (y == E.screenrows / 3) {
+      char welcome[80];
+      int welcomelen = snprintf(welcome, sizeof(welcome),
+          "Helix Editor -- %s", HELIX_VERSION);
+
+      if (welcomelen > E.screencols) welcomelen = E.screencols;
+
+      int padding = (E.screencols - welcomelen) / 2;
+      if (padding) {
+        AbAppend(ab, "$", 1);
+        padding--;
+      }
+      while (padding--) AbAppend(ab, " ", 1);
+
+      AbAppend(ab, welcome, welcomelen);
+    } else {
+      AbAppend(ab, "$", 1);
+    }
 
     AbAppend(ab, "\x1b[K", 3); // erase part of the line to the right of the cursor
     if (y < E.screenrows -1) {
