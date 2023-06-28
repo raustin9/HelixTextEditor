@@ -19,6 +19,8 @@
 
 // Gobal State
 struct EditorConfig {
+  int cx; // cursor x position
+  int cy; // cursor y position
   int screenrows;
   int screencols;
   struct termios orig_termios;
@@ -210,7 +212,11 @@ EditorRefreshScreen() {
   
   EditorDrawRows(&ab);
 
-  AbAppend(&ab, "\x1b[H", 3); 
+  char buf[32];
+  snprintf(buf, sizeof(buf), "\x1b[%d;%dH", E.cy+1, E.cx+1);
+  AbAppend(&ab, buf, strlen(buf));
+
+  // AbAppend(&ab, "\x1b[H", 3); 
   AbAppend(&ab, "\x1b[?25h", 6); // show the cursor 
 
   write(STDOUT_FILENO, ab.b, ab.len);
@@ -218,6 +224,28 @@ EditorRefreshScreen() {
 }
 
 /* INPUT */
+
+void
+EditorMoveCursor(char key) {
+  switch (key) {
+    case 'a':
+      E.cx--;
+      break;
+    
+    case 'd':
+      E.cx++;
+      break;
+
+    case 'w':
+      E.cy--;
+      break;
+
+    case 's':
+      E.cy++;
+      break;
+
+  }
+}
 
 // Process the logic for which key 
 // was pressed
@@ -233,6 +261,13 @@ EditorProcessKeypress() {
 		  write(STDOUT_FILENO, "\x1b[H", 3);  // reposition cursor at top left of screen to begin drawing
       exit(0);
       break;
+
+    case 'w':
+    case 's':
+    case 'a':
+    case 'd':
+      EditorMoveCursor(c);
+      break;
   }
 }
 
@@ -241,6 +276,9 @@ EditorProcessKeypress() {
 // Initialize the editor
 void
 InitEditor() {
+  E.cx = 0;
+  E.cy = 0;
+
   if (GetWindowSize(&E.screenrows, &E.screencols) == -1) {
     Die("Get window size");
   }
