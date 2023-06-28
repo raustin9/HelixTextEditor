@@ -342,7 +342,7 @@ InitEditor() {
 
 // Main function
 int
-main(int argc, char** argv) {
+main() {
   EnableRawMode();
   InitEditor();
 
