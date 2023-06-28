@@ -173,6 +173,7 @@ EditorDrawRows(struct abuf *ab) {
   for (y = 0; y < E.screenrows; y++) {
     AbAppend(ab, "$", 1);
 
+    AbAppend(ab, "\x1b[K", 3); // erase part of the line to the right of the cursor
     if (y < E.screenrows -1) {
       AbAppend(ab, "\r\n", 2);
     }
@@ -185,12 +186,14 @@ void
 EditorRefreshScreen() {
   struct abuf ab = ABUF_INIT;
 
-  AbAppend(&ab, "\x1b[2J", 4); 
-  AbAppend(&ab, "\x1b[H", 3); 
+  AbAppend(&ab, "\x1b[?25l", 6); // hide the cursor 
+  // AbAppend(&ab, "\x1b[2J", 4);   // clear the screen
+  AbAppend(&ab, "\x1b[H", 3);    // move cursor to top left of terminal
   
   EditorDrawRows(&ab);
 
   AbAppend(&ab, "\x1b[H", 3); 
+  AbAppend(&ab, "\x1b[?25h", 6); // show the cursor 
 
   write(STDOUT_FILENO, ab.b, ab.len);
   AbFree(&ab);
