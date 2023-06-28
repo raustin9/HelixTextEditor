@@ -3,6 +3,7 @@
 #include <ctype.h>
 #include <errno.h>
 #include <stdint.h>
+#include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -129,18 +130,51 @@ GetWindowSize(int *rows, int *cols) {
   }
 }
 
+
+/* APPEND BUFFER */
+
+// Structure for the append buffer
+// This will allow us to have dynamic strings
+// that can be appended
+struct abuf {
+  char *b;
+  int len;
+};
+
+#define ABUF_INIT {NULL, 0}
+
+// Append a string to the AppendBuffer's buffer
+void
+AbAppend(struct abuf *ab, const char *s, int len) {
+  char *new;
+
+  new = (char*)realloc(ab->b, ab->len + len);
+
+  if (new == NULL) return;
+
+  memcpy(&new[ab->len], s, len);
+  ab->b = new;
+  ab->len += len;
+}
+
+// Destructor for the append buffer class
+void
+AbFree(struct abuf *ab) {
+  free(ab->b);
+}
+
 /* OUTPUT */
 
 // Draw the rows to the screen
 void
-EditorDrawRows() {
+EditorDrawRows(struct abuf *ab) {
   int y;
 
   for (y = 0; y < E.screenrows; y++) {
-    write(STDOUT_FILENO, "$", 1);
+    AbAppend(ab, "$", 1);
 
     if (y < E.screenrows -1) {
-      write(STDOUT_FILENO, "\r\n", 2);
+      AbAppend(ab, "\r\n", 2);
     }
   }
 }
@@ -149,12 +183,17 @@ EditorDrawRows() {
 // actions to draw to the screen
 void
 EditorRefreshScreen() {
-  write(STDOUT_FILENO, "\x1b[2J", 4); // clears the screen
-  write(STDOUT_FILENO, "\x1b[H", 3);  // reposition cursor at top left of screen to begin drawing
-  
-  EditorDrawRows();
+  struct abuf ab = ABUF_INIT;
 
-  write(STDOUT_FILENO, "\x1b[H", 3);
+  AbAppend(&ab, "\x1b[2J", 4); 
+  AbAppend(&ab, "\x1b[H", 3); 
+  
+  EditorDrawRows(&ab);
+
+  AbAppend(&ab, "\x1b[H", 3); 
+
+  write(STDOUT_FILENO, ab.b, ab.len);
+  AbFree(&ab);
 }
 
 /* INPUT */
